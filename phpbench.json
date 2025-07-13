@@ -1,0 +1,9 @@
+{
+  "bootstrap": "vendor/autoload.php",
+  "path": "benchmarks",
+  "outputs": {
+    "console": {
+      "renderer": "console"
+    }
+  }
+}

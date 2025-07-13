@@ -1,0 +1,16 @@
+/var
+*.lock
+package.xml
+/vendor
+.php-cs-fixer.cache
+.phpbench
+.phpunit.result.cache
+docs/_build
+tests/clover.xml
+.idea
+.DS_Store
+Thumbs.db
+nbproject
+.buildpath
+.project
+.settings
