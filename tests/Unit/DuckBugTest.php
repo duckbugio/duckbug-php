@@ -19,9 +19,9 @@ final class DuckBugTest extends TestCase
 {
     public function testSingletonInstance(): void
     {
-        $instance = Duck::wake();
-        self::assertInstanceOf(Duck::class, $instance);
-        self::assertSame($instance, Duck::get());
+        $duck = Duck::wake();
+        self::assertInstanceOf(Duck::class, $duck);
+        self::assertSame($duck, Duck::get());
     }
 
     public function testQuackCalledIfEnabled(): void
@@ -42,8 +42,8 @@ final class DuckBugTest extends TestCase
         };
 
         $setup = new ProviderSetup($logger, true);
-        $duckBug = new Duck([$setup]);
-        $duckBug->quack(new Exception('Test'));
+        $duck = Duck::wake([$setup], ['password']);
+        $duck->quack(new Exception('Test'));
 
         self::assertTrue($logger->called);
     }
@@ -65,8 +65,8 @@ final class DuckBugTest extends TestCase
         };
 
         $setup = new ProviderSetup($logger, false);
-        $duckBug = new Duck([$setup]);
-        $duckBug->quack(new Exception('Test'));
+        $duck = Duck::wake([$setup], ['password']);
+        $duck->quack(new Exception('Test'));
 
         self::assertFalse($logger->called);
     }
@@ -102,12 +102,12 @@ final class DuckBugTest extends TestCase
         $logger1 = $makeLogger('A');
         $logger2 = $makeLogger('B');
 
-        $duckBug = new Duck([
+        $duck = Duck::wake([
             new ProviderSetup($logger1, true),
             new ProviderSetup($logger2, true),
         ]);
 
-        $duckBug->quack(new Exception('Test'));
+        $duck->quack(new Exception('Test'));
 
         self::assertEquals(['A', 'B'], $called);
     }
@@ -158,8 +158,8 @@ final class DuckBugTest extends TestCase
                 $flag === 'enabledEmergency'
             );
 
-            $duckBug = new Duck([$setup]);
-            $duckBug->log(strtoupper($level), 'msg', ['a' => 1]);
+            $duck = Duck::wake([$setup]);
+            $duck->log(strtoupper($level), 'msg', ['a' => 1]);
 
             self::assertSame(strtoupper($level), $logger->lastLevel);
             self::assertSame('msg', $logger->lastMessage);
@@ -185,9 +185,9 @@ final class DuckBugTest extends TestCase
         };
 
         $setup = new ProviderSetup($logger, false, false, false, false, false, false, false, false, false);
-        $duckBug = new Duck([$setup]);
+        $duck = Duck::wake([$setup]);
 
-        $duckBug->log('debug', 'should not log');
+        $duck->log('debug', 'should not log');
         self::assertFalse($logger->called);
     }
 
@@ -208,8 +208,8 @@ final class DuckBugTest extends TestCase
         };
 
         $setup = new ProviderSetup($logger);
-        $duckBug = new Duck([$setup]);
-        $duckBug->log('unknownLevel', 'msg');
+        $duck = Duck::wake([$setup]);
+        $duck->log('unknownLevel', 'msg');
 
         self::assertFalse($logger->called);
     }

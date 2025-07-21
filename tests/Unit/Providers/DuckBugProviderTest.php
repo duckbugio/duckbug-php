@@ -17,7 +17,7 @@ use ReflectionException;
  */
 final class DuckBugProviderTest extends TestCase
 {
-    private const TEST_DSN = 'https://example.com';
+    private const TEST_DSN = 'https://duckbug.io';
 
     /**
      * @throws ReflectionException
@@ -81,7 +81,13 @@ final class DuckBugProviderTest extends TestCase
      */
     private function createProviderWithClient(HttpClientInterface $client): DuckBugProvider
     {
-        $provider = DuckBugProvider::create(self::TEST_DSN, ['password'], false, true, 1, 1);
+        $provider = DuckBugProvider::create(
+            self::TEST_DSN,
+            false,
+            true,
+            1,
+            1
+        );
         $this->injectClient($provider, $client);
         return $provider;
     }

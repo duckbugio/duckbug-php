@@ -32,7 +32,7 @@ Initialize the SDK as early as possible in your application
 
 ```php
 try {
-    throw new \Exception('foo bar');
+    throw new \Exception('Quack quack');
 } catch (\Exception $exception) {
     \DuckBug\Duck::get()->quack($exception);
 }
@@ -87,9 +87,8 @@ It is recommended to use this class in your custom implementations of the `Provi
 
 ```php
 use DuckBug\Core\Provider;
-use DuckBug\Util\Pond;
+use DuckBug\Pond;
 use Psr\Log\LoggerTrait;
-use Throwable;
 
 class MyCustomProvider implements Provider
 {

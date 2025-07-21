@@ -5,41 +5,67 @@ declare(strict_types=1);
 namespace DuckBug;
 
 use DuckBug\Core\ProviderSetup;
+use Exception;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LoggerTrait;
 use Psr\Log\LogLevel;
 use Throwable;
 
-class Duck implements LoggerInterface
+final class Duck implements LoggerInterface
 {
     use LoggerTrait;
 
     /** @var Duck|null */
-    private static $instance;
+    private static $duck;
+    /** @var Pond|null */
+    private static $pond;
+    /** @var ProviderSetup[] */
     private $setups;
 
-    /** @param ProviderSetup[] $setups */
-    public function __construct(
-        array $setups = []
+    /**
+     * @param ProviderSetup[] $setups
+     * @param string[] $sensitiveFields
+     */
+    private function __construct(
+        array $setups = [],
+        array $sensitiveFields = []
     ) {
         $this->setups = $setups;
+        self::$pond = Pond::ripple($sensitiveFields);
     }
 
-    /** @param ProviderSetup[] $setups */
-    public static function wake(array $setups = []): self
-    {
-        self::$instance = new self($setups);
+    /**
+     * @param ProviderSetup[] $setups
+     * @param string[] $sensitiveFields
+     */
+    public static function wake(
+        array $setups = [],
+        array $sensitiveFields = ['password', 'token', 'api_key']
+    ): self {
+        self::$duck = new self($setups, $sensitiveFields);
 
-        return self::$instance;
+        return self::$duck;
     }
 
+    /**
+     * @throws Exception
+     */
     public static function get(): self
     {
-        if (self::$instance === null) {
-            self::$instance = new self();
+        if (self::$duck === null) {
+            throw new Exception('Duck::get() was called before Duck::wake()');
         }
 
-        return self::$instance;
+        return self::$duck;
+    }
+
+    public static function getPond(): Pond
+    {
+        if (self::$pond === null) {
+            self::$pond = Pond::ripple();
+        }
+
+        return self::$pond;
     }
 
     public function quack(Throwable $exception, array $context = []): void

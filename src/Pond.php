@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace DuckBug\Util;
+namespace DuckBug;
 
 use Nyholm\Psr7\Factory\Psr17Factory;
 use Nyholm\Psr7Server\ServerRequestCreator;
@@ -20,7 +20,7 @@ final class Pond
     }
 
     /** @param string[] $sensitiveFields */
-    public static function ripple(array $sensitiveFields): self
+    public static function ripple(array $sensitiveFields = []): self
     {
         return new self($sensitiveFields);
     }

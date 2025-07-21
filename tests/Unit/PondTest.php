@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Unit\Util;
+namespace DuckBug\Tests\Unit;
 
-use DuckBug\Util\Pond;
+use DuckBug\Pond;
 use PHPUnit\Framework\TestCase;
 use ReflectionMethod;
 
