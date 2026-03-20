@@ -1,0 +1,39 @@
+{
+  "name": "duckbug/duckbug-core",
+  "type": "library",
+  "description": "Core PHP SDK for DuckBug",
+  "keywords": [
+    "duckbug",
+    "observability",
+    "logging",
+    "error-monitoring",
+    "tracing"
+  ],
+  "homepage": "https://duckbug.io",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "DuckBug",
+      "email": "help@duckbug.io"
+    }
+  ],
+  "require": {
+    "php": ">=7.1",
+    "ext-json": "*",
+    "ext-mbstring": "*",
+    "ext-curl": "*",
+    "guzzlehttp/psr7": "^1.8.4|^2.1.1",
+    "psr/log": "^1.0|^2.0|^3.0",
+    "nyholm/psr7-server": "^1.1",
+    "nyholm/psr7": "^1.6",
+    "psr/http-server-middleware": "^1.0"
+  },
+  "suggest": {
+    "monolog/monolog": "For the DuckBug Monolog handler integration"
+  },
+  "autoload": {
+    "psr-4": {
+      "DuckBug\\": "src/"
+    }
+  }
+}

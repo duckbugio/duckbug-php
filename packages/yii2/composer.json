@@ -1,0 +1,41 @@
+{
+  "name": "duckbug/duckbug-yii2",
+  "type": "library",
+  "description": "Yii2 integration for the DuckBug PHP SDK",
+  "keywords": [
+    "duckbug",
+    "yii2",
+    "error-monitoring"
+  ],
+  "homepage": "https://duckbug.io",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "DuckBug",
+      "email": "help@duckbug.io"
+    }
+  ],
+  "require": {
+    "php": ">=7.1",
+    "duckbug/duckbug-core": "^0.1|dev-main",
+    "yiisoft/yii2": "^2.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "DuckBug\\Integrations\\Yii2\\": "src/"
+    }
+  },
+  "repositories": [
+    {
+      "type": "composer",
+      "url": "https://asset-packagist.org"
+    },
+    {
+      "type": "path",
+      "url": "../core",
+      "options": {
+        "symlink": true
+      }
+    }
+  ]
+}

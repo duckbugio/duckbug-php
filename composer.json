@@ -1,7 +1,7 @@
 {
   "name": "duckbug/duckbug",
   "type": "library",
-  "description": "PHP SDK for DuckBug (https://duckbug.io)",
+  "description": "Compatibility package and full PHP SDK for DuckBug (https://duckbug.io)",
   "keywords": [
     "duckbug",
     "log",
@@ -28,6 +28,7 @@
     "ext-curl": "*",
     "guzzlehttp/psr7": "^1.8.4|^2.1.1",
     "psr/log": "^1.0|^2.0|^3.0",
+    "psr/http-server-middleware": "^1.0",
     "nyholm/psr7-server": "^1.1",
     "nyholm/psr7": "^1.6"
   },
@@ -39,11 +40,38 @@
     "phpunit/phpunit": ">=7.0",
     "dms/phpunit-arraysubset-asserts": ">=0.5.0",
     "dg/bypass-finals": "^1.9",
-    "phpbench/phpbench": ">=0.16.10"
+    "phpbench/phpbench": ">=0.16.10",
+    "monolog/monolog": "^1.25|^2.0|^3.0",
+    "symfony/http-kernel": "^4.0|^5.0|^6.0"
+  },
+  "replace": {
+    "duckbug/duckbug-core": "self.version",
+    "duckbug/duckbug-symfony": "self.version",
+    "duckbug/duckbug-laravel": "self.version",
+    "duckbug/duckbug-yii2": "self.version",
+    "duckbug/duckbug-slim4": "self.version",
+    "duckbug/duckbug-wordpress": "self.version",
+    "duckbug/duckbug-drupal": "self.version",
+    "duckbug/duckbug-drupal7": "self.version"
+  },
+  "suggest": {
+    "monolog/monolog": "For the DuckBug Monolog handler integration",
+    "symfony/http-kernel": "For the Symfony exception listener integration",
+    "laravel/framework": "For the Laravel service provider integration",
+    "yiisoft/yii2": "For the Yii2 log target and error handler integrations",
+    "slim/slim": "For the Slim 4 middleware and error handler integrations",
+    "wordpress/wordpress": "For the WordPress bootstrap, hooks and plugin integration",
+    "drupal/core": "For the Drupal 9/10/11 module integration",
+    "drupal/drupal": "For the Drupal 7 legacy module integration"
   },
   "autoload": {
     "psr-4": {
-      "DuckBug\\": "src/"
+      "DuckBug\\": "src/",
+      "DuckBug\\Integrations\\Yii2\\": "packages/yii2/src/",
+      "DuckBug\\Integrations\\Slim4\\": "packages/slim4/src/",
+      "DuckBug\\Integrations\\WordPress\\": "packages/wordpress/src/",
+      "DuckBug\\Integrations\\Drupal\\": "packages/drupal/src/",
+      "DuckBug\\Integrations\\Drupal7\\": "packages/drupal7/src/"
     }
   },
   "autoload-dev": {

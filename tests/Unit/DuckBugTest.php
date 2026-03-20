@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Unit;
 
+use DuckBug\Core\Event;
+use DuckBug\Core\EventAwareProvider;
 use DuckBug\Core\Provider;
 use DuckBug\Core\ProviderSetup;
 use DuckBug\Duck;
@@ -212,5 +214,45 @@ final class DuckBugTest extends TestCase
         $duck->log('unknownLevel', 'msg');
 
         self::assertFalse($logger->called);
+    }
+
+    public function testScopeMetadataIsSentToEventAwareProvider(): void
+    {
+        $provider = new class() implements Provider, EventAwareProvider {
+            use LoggerTrait;
+
+            /** @var Event|null */
+            public $event;
+
+            public function captureEvent(Event $event): void
+            {
+                $this->event = $event;
+            }
+
+            public function log($level, $message, array $context = []): void
+            {
+            }
+
+            public function quack(Throwable $exception, array $context = []): void
+            {
+            }
+        };
+
+        $duck = Duck::wake([new ProviderSetup($provider)]);
+        $duck
+            ->setTag('module', 'billing')
+            ->setRelease('1.2.3')
+            ->setEnvironment('production')
+            ->setRequestId('req-42')
+            ->addBreadcrumb(['message' => 'step']);
+
+        $duck->warning('Something went wrong');
+
+        self::assertInstanceOf(Event::class, $provider->event);
+        self::assertSame('logs', $provider->event->getType());
+        self::assertSame('1.2.3', $provider->event->getPayload()['release']);
+        self::assertSame('production', $provider->event->getPayload()['environment']);
+        self::assertContains('module:billing', $provider->event->getPayload()['dTags']);
+        self::assertSame('req-42', $provider->event->getPayload()['requestId']);
     }
 }

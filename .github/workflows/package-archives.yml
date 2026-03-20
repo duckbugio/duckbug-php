@@ -1,0 +1,79 @@
+name: Package Archives
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  source-archives:
+    name: Archive ${{ matrix.package.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - { name: core, path: packages/core }
+          - { name: symfony, path: packages/symfony }
+          - { name: laravel, path: packages/laravel }
+          - { name: yii2, path: packages/yii2 }
+          - { name: slim4, path: packages/slim4 }
+          - { name: wordpress, path: packages/wordpress }
+          - { name: drupal, path: packages/drupal }
+          - { name: drupal7, path: packages/drupal7 }
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          coverage: none
+
+      - name: Validate package manifest
+        run: composer validate --strict --no-check-lock composer.json
+        working-directory: ${{ matrix.package.path }}
+
+      - name: Build archive
+        run: |
+          mkdir -p dist
+          tar -czf "dist/duckbug-${{ matrix.package.name }}.tar.gz" -C "${{ matrix.package.path }}" .
+
+      - name: Upload archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: duckbug-${{ matrix.package.name }}
+          path: dist/duckbug-${{ matrix.package.name }}.tar.gz
+
+  standalone-archives:
+    name: Standalone ${{ matrix.package.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - { name: wordpress, artifact: duckbug-wordpress-plugin, format: zip }
+          - { name: drupal7, artifact: duckbug-drupal7-module, format: zip }
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: curl, json, mbstring
+          coverage: none
+
+      - name: Build standalone archive
+        run: bash scripts/build-standalone-package.sh "${{ matrix.package.name }}" "${{ matrix.package.artifact }}" "${{ matrix.package.format }}"
+
+      - name: Upload standalone archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.package.artifact }}
+          path: var/build/dist/${{ matrix.package.artifact }}.${{ matrix.package.format }}

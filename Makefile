@@ -28,7 +28,7 @@ composer-update:
 	docker compose run --rm php-cli composer update
 
 
-check: lint analyze test bench
+check: lint analyze test bench package-validate
 
 lint:
 	docker compose run --rm php-cli composer lint
@@ -45,3 +45,17 @@ test:
 
 bench:
 	docker compose run --rm php-cli composer phpbench
+
+package-validate:
+	docker compose run --rm php-cli composer validate --strict --no-check-lock
+	docker compose run --rm php-cli composer validate --strict --no-check-lock packages/core/composer.json
+	docker compose run --rm php-cli composer validate --strict --no-check-lock packages/symfony/composer.json
+	docker compose run --rm php-cli composer validate --strict --no-check-lock packages/laravel/composer.json
+	docker compose run --rm php-cli composer validate --strict --no-check-lock packages/yii2/composer.json
+	docker compose run --rm php-cli composer validate --strict --no-check-lock packages/slim4/composer.json
+	docker compose run --rm php-cli composer validate --strict --no-check-lock packages/wordpress/composer.json
+	docker compose run --rm php-cli composer validate --strict --no-check-lock packages/drupal/composer.json
+	docker compose run --rm php-cli composer validate --strict --no-check-lock packages/drupal7/composer.json
+
+package-smoke:
+	docker compose run --rm php-cli vendor/bin/phpunit --filter PackageManifestTest

@@ -1,0 +1,5 @@
+name: DuckBug
+type: module
+description: DuckBug error monitoring, exception capture and logger bridge for Drupal 9/10/11.
+package: Monitoring
+core_version_requirement: ^9.5 || ^10 || ^11

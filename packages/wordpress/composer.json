@@ -1,0 +1,41 @@
+{
+  "name": "duckbug/duckbug-wordpress",
+  "type": "wordpress-plugin",
+  "description": "WordPress bootstrap, hooks and plugin delivery for the DuckBug PHP SDK",
+  "keywords": [
+    "duckbug",
+    "wordpress",
+    "error-monitoring",
+    "logging",
+    "plugin"
+  ],
+  "homepage": "https://duckbug.io",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "DuckBug",
+      "email": "help@duckbug.io"
+    }
+  ],
+  "require": {
+    "php": ">=7.1",
+    "duckbug/duckbug-core": "^0.1|dev-main"
+  },
+  "autoload": {
+    "psr-4": {
+      "DuckBug\\Integrations\\WordPress\\": "src/"
+    }
+  },
+  "extra": {
+    "installer-name": "duckbug-wordpress"
+  },
+  "repositories": [
+    {
+      "type": "path",
+      "url": "../core",
+      "options": {
+        "symlink": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+services:
+  duckbug.logger:
+    class: DuckBug\Integrations\Drupal\DuckBugLogger
+    arguments:
+      - '@request_stack'
+      - '@current_user'
+    tags:
+      - { name: logger }
+
+  duckbug.exception_subscriber:
+    class: DuckBug\Integrations\Drupal\DuckBugExceptionSubscriber
+    arguments:
+      - '@request_stack'
+      - '@current_user'
+    tags:
+      - { name: event_subscriber }

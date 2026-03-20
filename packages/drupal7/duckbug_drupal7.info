@@ -1,0 +1,5 @@
+name = DuckBug Drupal 7
+description = DuckBug error monitoring, exception capture and watchdog bridge for Drupal 7.
+core = 7.x
+package = Monitoring
+php = 7.1

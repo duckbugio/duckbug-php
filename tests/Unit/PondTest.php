@@ -60,12 +60,13 @@ final class PondTest extends TestCase
         $headers = $this->context->getHeaders();
         self::assertIsArray($headers);
         self::assertArrayHasKey('Authorization', $headers);
+        self::assertSame('***', $headers['Authorization']);
     }
 
     public function testGetCookies(): void
     {
         $cookies = $this->context->getCookies();
-        self::assertSame(['session' => 'abc123'], $cookies);
+        self::assertSame(['session' => '***'], $cookies);
     }
 
     public function testGetSession(): void
@@ -87,6 +88,15 @@ final class PondTest extends TestCase
     public function testGetUserIp(): void
     {
         self::assertSame('192.168.0.1', $this->context->getUserIp());
+    }
+
+    public function testGetContextAggregatesSanitizedFields(): void
+    {
+        $context = $this->context->getContext();
+
+        self::assertSame('192.168.0.1', $context['ip']);
+        self::assertSame('***', $context['headers']['Authorization']);
+        self::assertSame('***', $context['cookies']['session']);
     }
 
     public function testMaskSensitiveData(): void

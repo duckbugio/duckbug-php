@@ -1,0 +1,40 @@
+{
+  "name": "duckbug/duckbug-drupal7",
+  "type": "drupal-module",
+  "description": "Drupal 7 legacy module integration for the DuckBug PHP SDK",
+  "keywords": [
+    "duckbug",
+    "drupal7",
+    "error-monitoring",
+    "logging"
+  ],
+  "homepage": "https://duckbug.io",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "DuckBug",
+      "email": "help@duckbug.io"
+    }
+  ],
+  "require": {
+    "php": ">=7.1",
+    "duckbug/duckbug-core": "^0.1|dev-main"
+  },
+  "autoload": {
+    "psr-4": {
+      "DuckBug\\Integrations\\Drupal7\\": "src/"
+    }
+  },
+  "extra": {
+    "installer-name": "duckbug_drupal7"
+  },
+  "repositories": [
+    {
+      "type": "path",
+      "url": "../core",
+      "options": {
+        "symlink": true
+      }
+    }
+  ]
+}
