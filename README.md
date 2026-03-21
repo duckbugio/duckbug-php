@@ -1,6 +1,6 @@
 # Official DuckBug SDK for PHP
 
-Duck is a developer-focused wrapper for all your PHP loggers. It provides a unified, flexible interface to handle logging and error monitoring across different providers, with support for multiple log levels and context enrichment.
+Duck is a developer-focused SDK for capturing PHP errors and logs. It keeps one public capture API for application code, builds one canonical DuckBug event model in core, and can fan that event out to one or more providers.
 
 ## 🚀 Quick Start
 
@@ -28,6 +28,8 @@ composer require duckbug/duckbug-drupal7
 ```
 
 In split mode, `duckbug/duckbug-core` contains the SDK runtime, while framework packages only ship their own adapters on top of the same `DuckBug\...` namespaces.
+
+Core remains event-first: application code calls `Duck::quack()` / `Duck::log()`, core builds a canonical `Event`, and providers receive that event for delivery to DuckBug, Telegram, or another target.
 
 ### Configuration
 
@@ -144,22 +146,17 @@ If you use batching, flush explicitly before the process exits in long-running w
 #### Create your own Provider
 
 ```php
+use DuckBug\Core\Event;
 use DuckBug\Core\Provider;
-use Psr\Log\LoggerTrait;
-use Throwable;
 
 class MyCustomProvider implements Provider
 {
-    use LoggerTrait;
-
-    public function quack(Throwable $exception, array $context = []): void
+    public function captureEvent(Event $event): void
     {
-        // Your custom logic for handling exceptions
-    }
+        $payload = $event->getPayload();
 
-    public function log($level, $message, array $context = []): void
-    {
-        // Required by the LoggerTrait
+        // Send the canonical DuckBug event to your own target.
+        error_log('[MyCustomProvider] ' . $event->getType() . ' ' . json_encode($payload));
     }
 }
 ```
@@ -176,42 +173,24 @@ class MyCustomProvider implements Provider
 ## 🕵️ Pond
 
 Duck also supports gathering request-specific context information such as IP address, URL, query/body parameters, headers, and more via `Pond`.
-It is recommended to use this class in your custom implementations of the `Provider` interface to enrich logs with useful request metadata.
+When you implement a custom `Provider`, you usually do not need to call `Pond` directly because core already enriches the canonical `Event` before the provider receives it.
 
 Sensitive headers, cookies, session values and nested payload fields are scrubbed by default.
 
 #### Example with custom Provider
 
 ```php
+use DuckBug\Core\Event;
 use DuckBug\Core\Provider;
-use DuckBug\Pond;
-use Psr\Log\LoggerTrait;
 
 class MyCustomProvider implements Provider
 {
-    use LoggerTrait;
-
-    /** @var Pond */
-    private $context;
-
-    public function __construct()
+    public function captureEvent(Event $event): void
     {
-        $this->context = Pond::ripple(['password', 'token', 'api_key']);
-    }
+        $payload = $event->getPayload();
 
-    public function quack(Throwable $exception, array $context = []): void
-    {
-        $context['ip'] = $this->context->getUserIp();
-        $context['url'] = $this->context->getUrl();
-        $context['method'] = $this->context->getMethod();
-
-        // Send enriched context to your storage/logs/etc.
-        error_log('[MyCustomProvider] ' . $exception->getMessage() . ' ' . json_encode($context));
-    }
-
-    public function log($level, $message, array $context = []): void
-    {
-        // Optional: implement log-level handling
+        // The payload already includes request/runtime metadata collected by core.
+        error_log('[MyCustomProvider] ' . $payload['message'] . ' ' . json_encode($payload));
     }
 }
 ```

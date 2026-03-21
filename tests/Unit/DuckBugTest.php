@@ -5,14 +5,11 @@ declare(strict_types=1);
 namespace Unit;
 
 use DuckBug\Core\Event;
-use DuckBug\Core\EventAwareProvider;
 use DuckBug\Core\Provider;
 use DuckBug\Core\ProviderSetup;
 use DuckBug\Duck;
 use Exception;
 use PHPUnit\Framework\TestCase;
-use Psr\Log\LoggerTrait;
-use Throwable;
 
 /**
  * @internal
@@ -29,17 +26,12 @@ final class DuckBugTest extends TestCase
     public function testQuackCalledIfEnabled(): void
     {
         $logger = new class() implements Provider {
-            use LoggerTrait;
+            /** @var Event|null */
+            public $event;
 
-            public $called = false;
-
-            public function quack(Throwable $exception, array $context = []): void
+            public function captureEvent(Event $event): void
             {
-                $this->called = true;
-            }
-
-            public function log($level, $message, array $context = []): void
-            {
+                $this->event = $event;
             }
         };
 
@@ -47,22 +39,19 @@ final class DuckBugTest extends TestCase
         $duck = Duck::wake([$setup], ['password']);
         $duck->quack(new Exception('Test'));
 
-        self::assertTrue($logger->called);
+        self::assertInstanceOf(Event::class, $logger->event);
+        self::assertSame(Event::TYPE_ERROR, $logger->event->getType());
     }
 
     public function testQuackNotCalledIfDisabled(): void
     {
         $logger = new class() implements Provider {
-            use LoggerTrait;
-            public $called = false;
+            /** @var Event|null */
+            public $event;
 
-            public function quack(Throwable $exception, array $context = []): void
+            public function captureEvent(Event $event): void
             {
-                $this->called = true;
-            }
-
-            public function log($level, $message, array $context = []): void
-            {
+                $this->event = $event;
             }
         };
 
@@ -70,7 +59,7 @@ final class DuckBugTest extends TestCase
         $duck = Duck::wake([$setup], ['password']);
         $duck->quack(new Exception('Test'));
 
-        self::assertFalse($logger->called);
+        self::assertNull($logger->event);
     }
 
     public function testMultipleProvidersAreCalled(): void
@@ -79,8 +68,6 @@ final class DuckBugTest extends TestCase
 
         $makeLogger = function (string $id) use (&$called) {
             return new class($id, $called) implements Provider {
-                use LoggerTrait;
-
                 private $id;
                 private $calledRef;
 
@@ -90,13 +77,9 @@ final class DuckBugTest extends TestCase
                     $this->calledRef = &$calledRef;
                 }
 
-                public function quack(Throwable $exception, array $context = []): void
+                public function captureEvent(Event $event): void
                 {
                     $this->calledRef[] = $this->id;
-                }
-
-                public function log($level, $message, array $context = []): void
-                {
                 }
             };
         };
@@ -117,110 +100,54 @@ final class DuckBugTest extends TestCase
     public function testLogRespectsLevelFlags(): void
     {
         $levels = [
-            'debug' => 'enabledDebug',
-            'info' => 'enabledInfo',
-            'notice' => 'enabledNotice',
-            'warning' => 'enabledWarning',
-            'error' => 'enabledError',
-            'critical' => 'enabledCritical',
-            'alert' => 'enabledAlert',
-            'emergency' => 'enabledEmergency',
+            'debug' => ['flag' => 'enabledDebug', 'normalized' => 'DEBUG'],
+            'info' => ['flag' => 'enabledInfo', 'normalized' => 'INFO'],
+            'notice' => ['flag' => 'enabledNotice', 'normalized' => 'INFO'],
+            'warning' => ['flag' => 'enabledWarning', 'normalized' => 'WARN'],
+            'error' => ['flag' => 'enabledError', 'normalized' => 'ERROR'],
+            'critical' => ['flag' => 'enabledCritical', 'normalized' => 'FATAL'],
+            'alert' => ['flag' => 'enabledAlert', 'normalized' => 'FATAL'],
+            'emergency' => ['flag' => 'enabledEmergency', 'normalized' => 'FATAL'],
         ];
 
-        foreach ($levels as $level => $flag) {
+        foreach ($levels as $level => $settings) {
             $logger = new class() implements Provider {
-                use LoggerTrait;
+                /** @var Event|null */
+                public $event;
 
-                public $lastLevel;
-                public $lastMessage;
-                public $lastContext;
-
-                public function log($level, $message, array $context = []): void
+                public function captureEvent(Event $event): void
                 {
-                    $this->lastLevel = $level;
-                    $this->lastMessage = $message;
-                    $this->lastContext = $context;
-                }
-
-                public function quack(Throwable $exception, array $context = []): void
-                {
+                    $this->event = $event;
                 }
             };
 
             $setup = new ProviderSetup(
                 $logger,
                 false,
-                $flag === 'enabledDebug',
-                $flag === 'enabledInfo',
-                $flag === 'enabledNotice',
-                $flag === 'enabledWarning',
-                $flag === 'enabledError',
-                $flag === 'enabledCritical',
-                $flag === 'enabledAlert',
-                $flag === 'enabledEmergency'
+                $settings['flag'] === 'enabledDebug',
+                $settings['flag'] === 'enabledInfo',
+                $settings['flag'] === 'enabledNotice',
+                $settings['flag'] === 'enabledWarning',
+                $settings['flag'] === 'enabledError',
+                $settings['flag'] === 'enabledCritical',
+                $settings['flag'] === 'enabledAlert',
+                $settings['flag'] === 'enabledEmergency'
             );
 
             $duck = Duck::wake([$setup]);
             $duck->log(strtoupper($level), 'msg', ['a' => 1]);
 
-            self::assertSame(strtoupper($level), $logger->lastLevel);
-            self::assertSame('msg', $logger->lastMessage);
-            self::assertSame(['a' => 1], $logger->lastContext);
+            self::assertInstanceOf(Event::class, $logger->event);
+            self::assertSame(Event::TYPE_LOG, $logger->event->getType());
+            self::assertSame($settings['normalized'], $logger->event->getPayload()['level']);
+            self::assertSame('msg', $logger->event->getPayload()['message']);
+            self::assertSame(['a' => 1], $logger->event->getPayload()['context']);
         }
     }
 
     public function testLogSkipsWhenLevelDisabled(): void
     {
         $logger = new class() implements Provider {
-            use LoggerTrait;
-
-            public $called = false;
-
-            public function log($level, $message, array $context = []): void
-            {
-                $this->called = true;
-            }
-
-            public function quack(Throwable $exception, array $context = []): void
-            {
-            }
-        };
-
-        $setup = new ProviderSetup($logger, false, false, false, false, false, false, false, false, false);
-        $duck = Duck::wake([$setup]);
-
-        $duck->log('debug', 'should not log');
-        self::assertFalse($logger->called);
-    }
-
-    public function testUnknownLogLevelIsIgnored(): void
-    {
-        $logger = new class() implements Provider {
-            use LoggerTrait;
-            public $called = false;
-
-            public function log($level, $message, array $context = []): void
-            {
-                $this->called = true;
-            }
-
-            public function quack(Throwable $exception, array $context = []): void
-            {
-            }
-        };
-
-        $setup = new ProviderSetup($logger);
-        $duck = Duck::wake([$setup]);
-        $duck->log('unknownLevel', 'msg');
-
-        self::assertFalse($logger->called);
-    }
-
-    public function testScopeMetadataIsSentToEventAwareProvider(): void
-    {
-        $provider = new class() implements Provider, EventAwareProvider {
-            use LoggerTrait;
-
             /** @var Event|null */
             public $event;
 
@@ -228,13 +155,43 @@ final class DuckBugTest extends TestCase
             {
                 $this->event = $event;
             }
+        };
 
-            public function log($level, $message, array $context = []): void
+        $setup = new ProviderSetup($logger, false, false, false, false, false, false, false, false, false);
+        $duck = Duck::wake([$setup]);
+
+        $duck->log('debug', 'should not log');
+        self::assertNull($logger->event);
+    }
+
+    public function testUnknownLogLevelIsIgnored(): void
+    {
+        $logger = new class() implements Provider {
+            /** @var Event|null */
+            public $event;
+
+            public function captureEvent(Event $event): void
             {
+                $this->event = $event;
             }
+        };
 
-            public function quack(Throwable $exception, array $context = []): void
+        $setup = new ProviderSetup($logger);
+        $duck = Duck::wake([$setup]);
+        $duck->log('unknownLevel', 'msg');
+
+        self::assertNull($logger->event);
+    }
+
+    public function testScopeMetadataIsSentToProvider(): void
+    {
+        $provider = new class() implements Provider {
+            /** @var Event|null */
+            public $event;
+
+            public function captureEvent(Event $event): void
             {
+                $this->event = $event;
             }
         };
 

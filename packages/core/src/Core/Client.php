@@ -210,13 +210,7 @@ final class Client implements LoggerInterface
             if (!$setup->enabledThrowable) {
                 continue;
             }
-
-            if ($setup->provider instanceof EventAwareProvider) {
-                $setup->provider->captureEvent($event);
-                continue;
-            }
-
-            $setup->provider->quack($exception, $context);
+            $setup->provider->captureEvent($event);
         }
     }
 
@@ -253,13 +247,7 @@ final class Client implements LoggerInterface
             if (!$this->isLevelEnabled($setup, $rawLevel)) {
                 continue;
             }
-
-            if ($setup->provider instanceof EventAwareProvider) {
-                $setup->provider->captureEvent($event);
-                continue;
-            }
-
-            $setup->provider->log($level, $message, $context);
+            $setup->provider->captureEvent($event);
         }
     }
 
@@ -291,9 +279,7 @@ final class Client implements LoggerInterface
         $event = Event::transaction($this->buildTransactionPayload($transaction));
 
         foreach ($this->setups as $setup) {
-            if ($setup->provider instanceof EventAwareProvider) {
-                $setup->provider->captureEvent($event);
-            }
+            $setup->provider->captureEvent($event);
         }
     }
 

@@ -8,7 +8,6 @@ use DuckBug\Core\Event;
 use DuckBug\HttpClient\HttpClientInterface;
 use DuckBug\HttpClient\TransportResult;
 use DuckBug\Providers\DuckBugProvider;
-use Exception;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
@@ -24,7 +23,7 @@ final class DuckBugProviderTest extends TestCase
     /**
      * @throws ReflectionException
      */
-    public function testLogSendsCorrectPayload()
+    public function testCaptureEventSendsLogPayload()
     {
         /** @var HttpClientInterface|MockObject $client */
         $client = $this->createMock(HttpClientInterface::class);
@@ -48,13 +47,19 @@ final class DuckBugProviderTest extends TestCase
 
         $provider = $this->createProviderWithClient($client);
 
-        $provider->log('warning', 'Something went wrong', ['foo' => 'bar']);
+        $provider->captureEvent(Event::log([
+            'eventId' => '550e8400-e29b-41d4-a716-446655440000',
+            'time' => 1704067200000,
+            'level' => 'WARN',
+            'message' => 'Something went wrong',
+            'context' => ['foo' => 'bar'],
+        ]));
     }
 
     /**
      * @throws ReflectionException
      */
-    public function testQuackSendsException()
+    public function testCaptureEventSendsErrorPayload()
     {
         /** @var HttpClientInterface|MockObject $client */
         $client = $this->createMock(HttpClientInterface::class);
@@ -75,12 +80,16 @@ final class DuckBugProviderTest extends TestCase
 
         $provider = $this->createProviderWithClient($client);
 
-        $provider->quack(new class() extends Exception {
-            public function __construct()
-            {
-                parent::__construct('test');
-            }
-        });
+        $provider->captureEvent(Event::error([
+            'eventId' => '550e8400-e29b-41d4-a716-446655440001',
+            'time' => 1704067200000,
+            'file' => '/srv/app/test.php',
+            'line' => 42,
+            'message' => 'test',
+            'stacktrace' => [['file' => '/srv/app/test.php', 'line' => 42]],
+            'handled' => true,
+            'mechanism' => 'manual',
+        ]));
     }
 
     /**
@@ -107,8 +116,20 @@ final class DuckBugProviderTest extends TestCase
 
         $provider = $this->createProviderWithClient($client, 2);
 
-        $provider->log('warning', 'First');
-        $provider->log('warning', 'Second');
+        $provider->captureEvent(Event::log([
+            'eventId' => '550e8400-e29b-41d4-a716-446655440010',
+            'time' => 1704067200000,
+            'level' => 'WARN',
+            'message' => 'First',
+            'context' => [],
+        ]));
+        $provider->captureEvent(Event::log([
+            'eventId' => '550e8400-e29b-41d4-a716-446655440011',
+            'time' => 1704067200001,
+            'level' => 'WARN',
+            'message' => 'Second',
+            'context' => [],
+        ]));
     }
 
     /**
