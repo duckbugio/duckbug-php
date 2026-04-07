@@ -291,5 +291,4 @@ final class DuckBugProvider implements Provider, FlushableProvider
 
         error_log($message);
     }
-
 }

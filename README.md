@@ -143,31 +143,76 @@ If you use batching, flush explicitly before the process exits in long-running w
 
 ## ⚙️ Custom and Multiple Providers
 
+Every provider implements a single method — `captureEvent(Event $event)`. The SDK delivers typed Event subclasses (`ErrorEvent`, `LogEvent`, `TransactionEvent`), so your provider gets full autocompletion and static analysis without digging into raw arrays.
+
 #### Create your own Provider
 
 ```php
+use DuckBug\Core\ErrorEvent;
 use DuckBug\Core\Event;
+use DuckBug\Core\LogEvent;
 use DuckBug\Core\Provider;
 
-class MyCustomProvider implements Provider
+class TelegramProvider implements Provider
 {
     public function captureEvent(Event $event): void
     {
-        $payload = $event->getPayload();
+        if ($event instanceof ErrorEvent) {
+            $text = sprintf(
+                "Error: %s\n%s:%d",
+                $event->getMessage(),
+                $event->getFile(),
+                $event->getLine()
+            );
+            // $event->getException() returns the original Throwable when available
+            // $event->getStacktrace(), $event->isHandled(), $event->getMechanism()
+        } elseif ($event instanceof LogEvent) {
+            $text = sprintf('[%s] %s', $event->getLevel(), $event->getMessage());
+            // $event->getContext() returns the structured context array
+        } else {
+            return;
+        }
 
-        // Send the canonical DuckBug event to your own target.
-        error_log('[MyCustomProvider] ' . $event->getType() . ' ' . json_encode($payload));
+        $this->sendMessage($text);
     }
 }
 ```
+
+Providers that need the full wire payload (e.g. for HTTP transport) can still call `$event->getPayload()` on any Event subclass.
 
 #### Initialize Duck with Multiple Providers
 
 ```php
 \DuckBug\Duck::wake([
     new \DuckBug\Core\ProviderSetup(\DuckBug\Providers\DuckBugProvider::create('__PUBLIC_DSN__')),
-    new \DuckBug\Core\ProviderSetup(new MyCustomProvider())
+    new \DuckBug\Core\ProviderSetup(new TelegramProvider($botToken, $chatId)),
 ]);
+```
+
+#### Fan-out to an existing PSR-3 logger
+
+Use the built-in `Psr3LoggerProvider` to forward DuckBug events to any `Psr\Log\LoggerInterface` — Monolog, a file logger, Graylog, etc.:
+
+```php
+\DuckBug\Duck::wake([
+    new \DuckBug\Core\ProviderSetup(\DuckBug\Providers\DuckBugProvider::create('__PUBLIC_DSN__')),
+    new \DuckBug\Core\ProviderSetup(new \DuckBug\Providers\Psr3LoggerProvider($monolog)),
+]);
+```
+
+Error events are forwarded as `error` level with the original `Throwable` in context. Log events are forwarded with their level mapped back to PSR-3 names.
+
+## 🔄 PSR-3 Drop-in
+
+`Duck` implements `Psr\Log\LoggerInterface`, so it works anywhere a PSR-3 logger is expected:
+
+```php
+// Replace your existing logger with DuckBug
+$container->set(LoggerInterface::class, \DuckBug\Duck::get());
+
+// All standard PSR-3 methods work
+$logger->info('Order created', ['orderId' => 42]);
+$logger->error('Payment failed', ['exception' => $e]);
 ```
 
 ## 🕵️ Pond
@@ -176,24 +221,6 @@ Duck also supports gathering request-specific context information such as IP add
 When you implement a custom `Provider`, you usually do not need to call `Pond` directly because core already enriches the canonical `Event` before the provider receives it.
 
 Sensitive headers, cookies, session values and nested payload fields are scrubbed by default.
-
-#### Example with custom Provider
-
-```php
-use DuckBug\Core\Event;
-use DuckBug\Core\Provider;
-
-class MyCustomProvider implements Provider
-{
-    public function captureEvent(Event $event): void
-    {
-        $payload = $event->getPayload();
-
-        // The payload already includes request/runtime metadata collected by core.
-        error_log('[MyCustomProvider] ' . $payload['message'] . ' ' . json_encode($payload));
-    }
-}
-```
 
 ## 🔌 Integrations
 

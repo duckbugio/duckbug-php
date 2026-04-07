@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Unit;
 
+use DuckBug\Core\ErrorEvent;
 use DuckBug\Core\Event;
+use DuckBug\Core\LogEvent;
 use DuckBug\Core\Provider;
 use DuckBug\Core\ProviderSetup;
 use DuckBug\Duck;
@@ -40,7 +42,38 @@ final class DuckBugTest extends TestCase
         $duck->quack(new Exception('Test'));
 
         self::assertInstanceOf(Event::class, $logger->event);
+        self::assertInstanceOf(ErrorEvent::class, $logger->event);
         self::assertSame(Event::TYPE_ERROR, $logger->event->getType());
+    }
+
+    public function testErrorEventCarriesTypedData(): void
+    {
+        $logger = new class() implements Provider {
+            /** @var Event|null */
+            public $event;
+
+            public function captureEvent(Event $event): void
+            {
+                $this->event = $event;
+            }
+        };
+
+        $duck = Duck::wake([new ProviderSetup($logger)]);
+        $exception = new Exception('Typed error test');
+        $duck->quack($exception, ['extra_key' => 'extra_val']);
+
+        self::assertInstanceOf(ErrorEvent::class, $logger->event);
+        /** @var ErrorEvent $errorEvent */
+        $errorEvent = $logger->event;
+        self::assertSame($exception, $errorEvent->getException());
+        self::assertSame('Typed error test', $errorEvent->getMessage());
+        self::assertSame($exception->getFile(), $errorEvent->getFile());
+        self::assertSame($exception->getLine(), $errorEvent->getLine());
+        self::assertSame(['extra_key' => 'extra_val'], $errorEvent->getContext());
+        self::assertTrue($errorEvent->isHandled());
+        self::assertSame('manual', $errorEvent->getMechanism());
+        self::assertNotEmpty($errorEvent->getStacktrace());
+        self::assertNotEmpty($errorEvent->getStacktraceAsString());
     }
 
     public function testQuackNotCalledIfDisabled(): void
@@ -137,11 +170,17 @@ final class DuckBugTest extends TestCase
             $duck = Duck::wake([$setup]);
             $duck->log(strtoupper($level), 'msg', ['a' => 1]);
 
-            self::assertInstanceOf(Event::class, $logger->event);
+            self::assertInstanceOf(LogEvent::class, $logger->event);
             self::assertSame(Event::TYPE_LOG, $logger->event->getType());
-            self::assertSame($settings['normalized'], $logger->event->getPayload()['level']);
-            self::assertSame('msg', $logger->event->getPayload()['message']);
-            self::assertSame(['a' => 1], $logger->event->getPayload()['context']);
+
+            /** @var LogEvent $logEvent */
+            $logEvent = $logger->event;
+            self::assertSame($settings['normalized'], $logEvent->getLevel());
+            self::assertSame('msg', $logEvent->getMessage());
+            self::assertSame(['a' => 1], $logEvent->getContext());
+
+            self::assertSame($settings['normalized'], $logEvent->getPayload()['level']);
+            self::assertSame('msg', $logEvent->getPayload()['message']);
         }
     }
 

@@ -204,7 +204,13 @@ final class Client implements LoggerInterface
         bool $handled = true,
         string $mechanism = 'manual'
     ): void {
-        $event = Event::error($this->buildErrorPayload($exception, $context, $handled, $mechanism));
+        $event = new ErrorEvent(
+            $exception,
+            $context,
+            $handled,
+            $mechanism,
+            $this->buildErrorPayload($exception, $context, $handled, $mechanism)
+        );
 
         foreach ($this->setups as $setup) {
             if (!$setup->enabledThrowable) {
@@ -241,7 +247,12 @@ final class Client implements LoggerInterface
             return;
         }
 
-        $event = Event::log($this->buildLogPayload($normalizedLevel, $message, $context));
+        $event = new LogEvent(
+            $normalizedLevel,
+            $message,
+            $context,
+            $this->buildLogPayload($normalizedLevel, $message, $context)
+        );
 
         foreach ($this->setups as $setup) {
             if (!$this->isLevelEnabled($setup, $rawLevel)) {
@@ -276,7 +287,7 @@ final class Client implements LoggerInterface
 
     public function captureTransaction(Transaction $transaction): void
     {
-        $event = Event::transaction($this->buildTransactionPayload($transaction));
+        $event = new TransactionEvent($transaction, $this->buildTransactionPayload($transaction));
 
         foreach ($this->setups as $setup) {
             $setup->provider->captureEvent($event);
