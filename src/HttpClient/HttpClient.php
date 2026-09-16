@@ -6,6 +6,8 @@ namespace DuckBug\HttpClient;
 
 final class HttpClient implements HttpClientInterface
 {
+    private const STATUS_REQUEST_TIMEOUT = 408;
+
     private const STATUS_TOO_MANY_REQUESTS = 429;
 
     private const STATUS_SERVER_ERROR_MIN = 500;
@@ -103,20 +105,50 @@ final class HttpClient implements HttpClientInterface
 
     /**
      * Tells whether sending the very same request again can plausibly end
-     * differently: transport errors, throttling (429) and server-side faults are
-     * expected to clear up on their own, so they are worth another attempt.
+     * differently. This predicate is the shared one: duckbug-go and duckbug-js
+     * answer exactly the same question the same way, and a change here has to
+     * land in all three.
      *
-     * 501 is the deliberate hole in the 5xx range. It is the server stating that
-     * it does not implement the capability at all - DuckBug answers it when a
-     * feature is not configured in this installation - and no amount of waiting
-     * turns that into a success; an operator has to change the installation
-     * first. Repeating it only burns the caller's budget and delays the error
-     * they need to see.
+     * The rule is "transient unless proven final": a request that never
+     * produced a response, 408, 429 and every 5xx are worth another attempt;
+     * 501 is the single carve-out; everything else is the final answer.
      *
-     * The exception is written as a single carve-out rather than an allow list
-     * of retriable codes on purpose: every other 5xx, including codes that
-     * proxies or future server versions invent, keeps its transient-by-default
-     * treatment.
+     * It is written as a rule with one hole rather than as a list of retriable
+     * codes on purpose. This client does not only talk to DuckBug's ingest - a
+     * DuckBug installation sits behind whatever edge the customer runs, and
+     * that edge invents statuses of its own. An allow list turns every code it
+     * has not been taught about into a silently dropped event, which is the one
+     * failure an error tracker must not have, and widening it means shipping a
+     * new SDK into every consumer's dependency tree. Being wrong the other way
+     * costs at most $maxRetries extra requests with bounded backoff, and the
+     * backend treats eventId as the idempotency key, so a retry of a request
+     * that did arrive cannot create a second event.
+     *
+     * 408 is retried because it is the edge timing out the request body
+     * (nginx client_body_timeout and friends), never a verdict on the payload;
+     * RFC 9110 states outright that such a request may be repeated unchanged.
+     *
+     * 501 is the hole: it is DuckBug stating that the capability is not
+     * configured in this installation, and only an operator can change that.
+     * The backend reaches for 501 over 503 in exactly that case so clients stop
+     * retrying, because 503 would promise that waiting helps. A 501 from an
+     * intermediary means the same thing one layer out, so the answer is the
+     * same either way.
+     *
+     * Do not widen this carve-out to 503. On the ingest path a 503 is the edge
+     * during a redeploy - the transient case this predicate exists for.
+     *
+     * Deliberate difference from the other two SDKs: a request that never
+     * reached a response arrives here as a non-null error message, because that
+     * is how cURL reports a dial, TLS or timeout failure - it sets an errno and
+     * leaves the status at 0. duckbug-go sees the same case as an error from
+     * http.Client.Do and duckbug-js as a rejected fetch promise; all three
+     * retry it.
+     *
+     * The 429 that DuckBug's rate limiter returns carries Retry-After, which
+     * this client does not read - the backoff in request() decides on its own.
+     * Honouring it is a separate change and has to land in all three SDKs
+     * together.
      */
     private static function isRetriable(TransportResult $result): bool
     {
@@ -130,6 +162,10 @@ final class HttpClient implements HttpClientInterface
             return false;
         }
 
-        return $statusCode === self::STATUS_TOO_MANY_REQUESTS || $statusCode >= self::STATUS_SERVER_ERROR_MIN;
+        if ($statusCode === self::STATUS_REQUEST_TIMEOUT || $statusCode === self::STATUS_TOO_MANY_REQUESTS) {
+            return true;
+        }
+
+        return $statusCode >= self::STATUS_SERVER_ERROR_MIN;
     }
 }

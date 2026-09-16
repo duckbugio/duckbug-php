@@ -28,6 +28,29 @@ final class HttpClientRetryPolicyTest extends TestCase
         }
     }
 
+    public function testUnknownServerFailuresStayRetriable(): void
+    {
+        foreach ([505, 507, 508, 510, 521, 599] as $statusCode) {
+            self::assertTrue(
+                self::isRetriable(new TransportResult($statusCode)),
+                sprintf(
+                    'Status %d is one the SDK has not been taught about; an edge in front of the '
+                    . 'installation invents those, and dropping the event on the first one loses it silently',
+                    $statusCode
+                )
+            );
+        }
+    }
+
+    public function testRequestTimeoutIsRetried(): void
+    {
+        self::assertTrue(
+            self::isRetriable(new TransportResult(408)),
+            'Status 408 is the edge timing out the request body, not a verdict on the payload, '
+            . 'and RFC 9110 states such a request may be repeated unchanged'
+        );
+    }
+
     public function testThrottlingIsRetried(): void
     {
         self::assertTrue(
@@ -40,17 +63,21 @@ final class HttpClientRetryPolicyTest extends TestCase
     {
         self::assertFalse(
             self::isRetriable(new TransportResult(501)),
-            'Status 501 means the capability is not implemented in this installation, '
+            'Status 501 means the capability is not configured in this installation, '
             . 'so repeating the request cannot change the answer'
         );
     }
 
     public function testClientErrorsAreTerminal(): void
     {
-        foreach ([400, 401, 403, 404, 413, 422] as $statusCode) {
+        foreach ([400, 401, 403, 404, 409, 413, 415, 422] as $statusCode) {
             self::assertFalse(
                 self::isRetriable(new TransportResult($statusCode)),
-                sprintf('Status %d is the caller\'s fault and must not be retried', $statusCode)
+                sprintf(
+                    'Status %d is a verdict on this exact request - rejected, already ingested or '
+                    . 'malformed - and sending it again cannot change it. 408 is the one 4xx that can',
+                    $statusCode
+                )
             );
         }
     }
