@@ -6,6 +6,12 @@ namespace DuckBug\HttpClient;
 
 final class HttpClient implements HttpClientInterface
 {
+    private const STATUS_TOO_MANY_REQUESTS = 429;
+
+    private const STATUS_SERVER_ERROR_MIN = 500;
+
+    private const STATUS_NOT_IMPLEMENTED = 501;
+
     /** @var int */
     private $timeout;
 
@@ -57,9 +63,7 @@ final class HttpClient implements HttpClientInterface
                 return $result;
             }
 
-            $statusCode = $result->getStatusCode();
-            $isRetriable = $result->getErrorMessage() !== null || $statusCode === 429 || $statusCode >= 500;
-            if (!$isRetriable || $attempts >= $maxAttempts) {
+            if (!self::isRetriable($result) || $attempts >= $maxAttempts) {
                 return $result;
             }
 
@@ -95,5 +99,37 @@ final class HttpClient implements HttpClientInterface
         }
 
         return new TransportResult($httpCode, \is_string($response) ? $response : '', null, $attempts);
+    }
+
+    /**
+     * Tells whether sending the very same request again can plausibly end
+     * differently: transport errors, throttling (429) and server-side faults are
+     * expected to clear up on their own, so they are worth another attempt.
+     *
+     * 501 is the deliberate hole in the 5xx range. It is the server stating that
+     * it does not implement the capability at all - DuckBug answers it when a
+     * feature is not configured in this installation - and no amount of waiting
+     * turns that into a success; an operator has to change the installation
+     * first. Repeating it only burns the caller's budget and delays the error
+     * they need to see.
+     *
+     * The exception is written as a single carve-out rather than an allow list
+     * of retriable codes on purpose: every other 5xx, including codes that
+     * proxies or future server versions invent, keeps its transient-by-default
+     * treatment.
+     */
+    private static function isRetriable(TransportResult $result): bool
+    {
+        if ($result->getErrorMessage() !== null) {
+            return true;
+        }
+
+        $statusCode = $result->getStatusCode();
+
+        if ($statusCode === self::STATUS_NOT_IMPLEMENTED) {
+            return false;
+        }
+
+        return $statusCode === self::STATUS_TOO_MANY_REQUESTS || $statusCode >= self::STATUS_SERVER_ERROR_MIN;
     }
 }
