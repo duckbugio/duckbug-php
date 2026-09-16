@@ -117,7 +117,7 @@ $provider = \DuckBug\Providers\DuckBugProvider::create('__PUBLIC_DSN__')
 
 `configurePrivacy()` disables whole request/env sections before sending, while `setBeforeSend()` lets you redact or drop a single event at the last moment.
 
-Failed deliveries are retried on transport errors, `429` and server faults. `501 Not Implemented` is final: it means the capability is not configured in that DuckBug installation, so the request is not repeated and `setTransportFailureHandler()` is called once instead of once per attempt.
+Failed deliveries are retried on transport errors, `408`, `429` and every `5xx`, including status codes this SDK has never been taught about - those are what an edge in front of the installation invents, and dropping the event on the first one would lose it silently. `501 Not Implemented` is the single exception and is final: it means the capability is not configured in that DuckBug installation, so the request is not repeated and `setTransportFailureHandler()` is called once instead of once per attempt. Everything else, `4xx` in particular, is reported after one attempt. The same predicate is implemented in `duckbug-go` and `duckbug-js`.
 
 ### Transactions and spans
 
