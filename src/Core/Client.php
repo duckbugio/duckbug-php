@@ -295,6 +295,24 @@ final class Client implements LoggerInterface
     }
 
     /**
+     * Mints an event id in the only shape ingest accepts: the server validates
+     * the field as uuid4, so a random UUID with the version and variant bits
+     * set is what makes an event deduplicable rather than rejected with 400.
+     *
+     * It is public because the id is not optional for anyone assembling an
+     * ingest payload by hand instead of going through this client - see
+     * DuckBugProvider::ensureEventId().
+     */
+    public static function generateEventId(): string
+    {
+        $bytes = random_bytes(16);
+        $bytes[6] = \chr((\ord($bytes[6]) & 0x0F) | 0x40);
+        $bytes[8] = \chr((\ord($bytes[8]) & 0x3F) | 0x80);
+
+        return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($bytes), 4));
+    }
+
+    /**
      * @param array<string, mixed> $context
      * @return array<string, mixed>
      */
@@ -344,7 +362,7 @@ final class Client implements LoggerInterface
         $requestContext = $this->pond->getContext();
 
         return [
-            'eventId' => $this->generateEventId(),
+            'eventId' => self::generateEventId(),
             'platform' => $metadata['platform'],
             'release' => $metadata['release'],
             'environment' => $metadata['environment'],
@@ -591,15 +609,6 @@ final class Client implements LoggerInterface
             default:
                 return false;
         }
-    }
-
-    private function generateEventId(): string
-    {
-        $bytes = random_bytes(16);
-        $bytes[6] = \chr((\ord($bytes[6]) & 0x0F) | 0x40);
-        $bytes[8] = \chr((\ord($bytes[8]) & 0x3F) | 0x80);
-
-        return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($bytes), 4));
     }
 
     private function generateTraceId(): string

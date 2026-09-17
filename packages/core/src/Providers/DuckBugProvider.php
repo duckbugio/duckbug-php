@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace DuckBug\Providers;
 
+use DuckBug\Core\Client;
 use DuckBug\Core\Event;
 use DuckBug\Core\FlushableProvider;
 use DuckBug\Core\Provider;
@@ -221,6 +222,45 @@ final class DuckBugProvider implements Provider, FlushableProvider
 
             $payload = $this->stripNullValues($processed);
         }
+
+        return $this->ensureEventId($payload);
+    }
+
+    /**
+     * Guarantees that every payload leaving this provider carries an
+     * idempotency key. Ingest deduplicates on "eventId" - a Postgres primary
+     * key with ON CONFLICT DO NOTHING, no expiry, on the single and the batch
+     * route alike - but only for a payload that has one: the field is optional
+     * there, and without it the server mints a fresh id per request, so the
+     * retries in HttpClient would store the same event once per attempt.
+     *
+     * preparePayload() is the last point every payload passes through before
+     * the transport, and this runs as its final act: after beforeSend and after
+     * the null strip, because a hook that dropped or blanked the field would
+     * otherwise reopen the gap. The "nothing to send" check stays above, so no
+     * event is born out of an eventId alone.
+     *
+     * Client sets the id on everything it builds, so this is a no-op on the
+     * normal path; it is a caller driving the provider straight through
+     * captureEvent() that would otherwise reach ingest unidentified.
+     *
+     * A usable id the caller supplied always wins. Anything else - absent,
+     * blank, or not a string - is not an id ingest would honour (it validates
+     * uuid4 and answers 400 otherwise), so it is replaced rather than passed
+     * through to be rejected.
+     *
+     * @param array<string, mixed> $payload
+     * @return array<string, mixed>
+     */
+    private function ensureEventId(array $payload): array
+    {
+        /** @var mixed $existing */
+        $existing = $payload['eventId'] ?? null;
+        if (\is_string($existing) && trim($existing) !== '') {
+            return $payload;
+        }
+
+        $payload['eventId'] = Client::generateEventId();
 
         return $payload;
     }
