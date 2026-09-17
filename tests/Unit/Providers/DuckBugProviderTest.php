@@ -324,8 +324,8 @@ final class DuckBugProviderTest extends TestCase
 
     /**
      * @param array<string, mixed> $payload
-     * @return array<string, mixed>
      * @throws ReflectionException
+     * @return array<string, mixed>
      */
     private function captureSentLogPayload(array $payload, ?callable $beforeSend = null): array
     {
